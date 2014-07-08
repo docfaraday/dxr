@@ -148,10 +148,6 @@ def build_instance(config_path, nb_jobs=None, tree=None, verbose=False):
             # Create database tables
             create_tables(tree, conn)
 
-            # Index all source files (for full text search)
-            # Also build all folder listing while we're at it
-            index_files(tree, conn)
-
             # Build tree
             build_tree(tree, conn, verbose)
 
@@ -406,6 +402,13 @@ def build_tree(tree, conn, verbose):
             with open(log.name) as log_file:
                 print >> sys.stderr, '    | %s ' % '    | '.join(log_file)
         sys.exit(1)
+
+    # Index all source files (for full text search)
+    # Also build all folder listing while we're at it
+    # Happens after build since there might be generated files,
+    # but before post processing since the indexers will want the file
+    # index
+    index_files(tree, conn)
 
     # Let plugins post process
     for indexer in indexers:

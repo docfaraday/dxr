@@ -119,7 +119,7 @@ class TreeConfig(object):
             'disabled_plugins': "",
             'temp_folder':      os.path.join(config.temp_folder, name),
             'log_folder':       os.path.join(config.log_folder, name),
-            'ignore_patterns':  ".hg .git CVS .svn .bzr .deps .libs",
+            'ignore_patterns':  ".hg .git CVS .svn .bzr .deps .libs .csv",
             'build_command':    "make -j $jobs",
             'source_encoding':  'utf-8',
             'description':  ''
