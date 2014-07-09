@@ -6,7 +6,7 @@ CLEAN_PLUGINS = $(PLUGINS:%=clean-plugin-%)
 
 all: build
 
-test: build
+test: $(BUILD_PLUGINS) trilite
 	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:`pwd`/trilite python2 setup.py test
 
 build: $(BUILD_PLUGINS) trilite templates
