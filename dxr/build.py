@@ -262,15 +262,35 @@ def index_files(tree, conn):
             # that's why it makes sense to save this result in the database
             icon = dxr.mime.icon(path)
 
-            # Insert this file
-            cur.execute("INSERT INTO files (path, icon, encoding) VALUES (?, ?, ?)",
-                        (path, icon, tree.source_encoding))
-            # Index this file
-            sql = "INSERT INTO trg_index (id, text) VALUES (?, ?)"
-            cur.execute(sql, (cur.lastrowid, data))
+            if os.path.exists(path):
+                mtime = os.stat(path).st_mtime
+                # Remove file if stale; this causes a cascade that removes stale
+                # information from the database.
+                cur.execute("DELETE FROM files WHERE path == ? AND mtime < ?", (path, mtime))
+            else:
+                # Test cases use fake files
+                mtime = 0
 
-            # Okay to this file was indexed
-            indexed_files.append(f)
+            # TODO: Once we're ready to implement incremental update, we'll
+            # need to prune this file (and everything that depends on it)
+            # from the db.
+            cur.execute("DELETE FROM files WHERE path == ? AND mtime < ?", (path, mtime))
+
+            # path isn't a unique index. Once that's fixed, we can make this
+            # simpler.
+            cur.execute("SELECT * FROM files WHERE path == ?", (path,))
+
+            if cur.fetchone() is None:
+                # Insert this file
+                cur.execute("INSERT INTO files (path, icon, encoding, mtime) VALUES (?, ?, ?, ?)",
+                            (path, icon, tree.source_encoding, mtime))
+                # Index this file
+                sql = "INSERT INTO trg_index (id, text) VALUES (?, ?)"
+                cur.execute(sql, (cur.lastrowid, data))
+
+                # Okay to this file was indexed
+                indexed_files.append(f)
+
 
         # Exclude folders that match an ignore pattern.
         # os.walk listens to any changes we make in `folders`.

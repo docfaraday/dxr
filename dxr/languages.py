@@ -14,6 +14,7 @@ language_schema = dxr.schema.Schema({
         ("path", "VARCHAR(1024)", True),
         ("icon", "VARCHAR(64)", True),
         ("encoding", "VARCHAR(16)", False),
+        ("mtime", "INTEGER", True),
         ("_key", "id"),
         ("_index", "path"),               # TODO: Make this a unique index
     ],
