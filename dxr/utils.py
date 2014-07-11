@@ -115,5 +115,6 @@ def connect_db(dir):
     conn.text_factory = str
     conn.execute("PRAGMA synchronous=off")
     conn.execute("PRAGMA page_size=32768")
+    conn.execute("PRAGMA foreign_keys=on")
     conn.row_factory = sqlite3.Row
     return conn
