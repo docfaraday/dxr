@@ -25,6 +25,12 @@ class DirectCallTests(SingleFileTestCase):
             called_once();
         }
 
+        bool call_from_static_init() {
+          return true;
+        }
+
+        bool dummy = call_from_static_init();
+
         int main()
         {
             called_twice();
@@ -44,7 +50,7 @@ class DirectCallTests(SingleFileTestCase):
     def test_two_callers(self):
         self.found_lines_eq('callers:called_twice', [
             ('void <b>call_two</b>()', 14),
-            ('int <b>main</b>()', 20)])
+            ('int <b>main</b>()', 26)])
 
     def test_one_callee(self):
         self.found_line_eq('called-by:main', 'void <b>called_twice</b>()')

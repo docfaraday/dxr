@@ -684,7 +684,7 @@ def generate_callgraph(conn):
             if call['callerid'] is None:
                 continue
         else:
-            call['callerid'] = 0
+            call['callerid'] = None
 
         target_loc = splitLoc(conn, call['calleeloc'])
         if target_loc[0] is None:
