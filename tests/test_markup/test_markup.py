@@ -21,3 +21,8 @@ class MarkupTests(DxrInstanceTestCase):
         response = self.client().get('/code/source/')
         ok_('<folder>' not in response.data)
         ok_('&lt;folder&gt;' in response.data)
+
+    def test_incremental(self):
+        self.touch_and_rebuild('code/<folder>/README.mkd')
+        self.test_autofocus_root()
+        self.test_folder_name_escaping()

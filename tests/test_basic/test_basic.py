@@ -48,3 +48,18 @@ class BasicTests(DxrInstanceTestCase):
         response = self.client().get('/')
         eq_(response.status_code, 302)
         ok_(response.headers['Location'].endswith('/code/source/'))
+
+
+    def test_incremental(self):
+        files = ['code/dot_c.c',
+                 'code/main.c',
+                 'code/README.mkd',
+                 'code/dynamic-token-test-tokenizer.html']
+        for file in files:
+            self.touch_and_rebuild(file)
+            self.test_text()
+            self.test_case_sensitive()
+            self.test_case_insensitive_extents()
+            self.test_index()
+            self.test_case_insensitive()
+

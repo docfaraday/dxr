@@ -11,3 +11,10 @@ class CVarDeclTests(DxrInstanceTestCase):
     def test_defn(self):
         """Search for C variable definition."""
         self.found_line_eq('var:global', u'int <b>global</b>;', 3)
+
+    def test_incremental(self):
+        for file in ['code/main.cpp', 'code/extern.c', 'code/extern.h']:
+            self.touch_and_rebuild(file)
+            self.test_decl()
+            self.test_defn()
+
