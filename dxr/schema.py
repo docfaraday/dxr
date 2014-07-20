@@ -58,6 +58,7 @@ class SchemaTable(object):
         self.columns = []
         self.needLang = False
         self.needFileKey = False
+        self.fileKeyDeleteAction = 'CASCADE'
         defaults = ['VARCHAR(256)', True]
         for col in tblschema:
             if isinstance(tblschema, tuple) or isinstance(tblschema, list):
@@ -76,7 +77,9 @@ class SchemaTable(object):
                 if len(spec) <= 1:
                     prefix = ''
                 else:
-                    prefix = spec[1] + "_"
+                    prefix = spec[1]
+                    if len(spec) > 2:
+                        self.fileKeyDeleteAction = spec[2]
 
                 self.columns.append((prefix + "file_id", ["INTEGER", True]))
                 self.columns.append((prefix + "file_line", ["INTEGER", True]))
@@ -90,8 +93,7 @@ class SchemaTable(object):
                 self.columns.append((col, spec))
 
     def get_create_sql(self):
-        sql = 'DROP TABLE IF EXISTS %s;\n' % (self.name)
-        sql += 'CREATE TABLE %s (\n  ' % (self.name)
+        sql = 'CREATE TABLE IF NOT EXISTS %s (\n  ' % (self.name)
         colstrs = []
         special_types = {
             '_language': 'VARCHAR(32)'
@@ -107,19 +109,24 @@ class SchemaTable(object):
             colstrs.append(specsql)
 
         if self.needFileKey is True:
-            colstrs.append('FOREIGN KEY (file_id) REFERENCES files(ID)')
+            colstrs.append('FOREIGN KEY (file_id) REFERENCES files(ID) ON DELETE %s' % self.fileKeyDeleteAction)
 
         for spec in self.fkeys:
-            colstrs.append('FOREIGN KEY (%s) REFERENCES %s(%s)' % (spec[0], spec[1], spec[2]))
+            if len(spec) >= 4:
+                delete_action = spec[3]
+            else:
+                delete_action = "SET DEFAULT"
+
+            colstrs.append('FOREIGN KEY (%s) REFERENCES %s(%s) ON DELETE %s' % (spec[0], spec[1], spec[2], delete_action))
         if self.key is not None:
             colstrs.append('PRIMARY KEY (%s)' % ', '.join(self.key))
         sql += ',\n  '.join(colstrs)
         sql += '\n);\n'
         if self.index is not None:
-            sql += 'CREATE INDEX %s_%s_index on %s (%s);\n' % (self.name, '_'.join(self.index), self.name, ','.join(self.index))
+            sql += 'CREATE INDEX IF NOT EXISTS %s_%s_index on %s (%s);\n' % (self.name, '_'.join(self.index), self.name, ','.join(self.index))
         if self.needFileKey is True:
             has_extents = 'extent_start' in [x[0] for x in self.columns]
-            sql += ('CREATE UNIQUE INDEX %s_file_index on %s (file_id, file_line, file_col%s);' %
+            sql += ('CREATE UNIQUE INDEX IF NOT EXISTS %s_file_index on %s (file_id, file_line, file_col%s);' %
                     (self.name, self.name, ', extent_start, extent_end' if has_extents else ''))
         return sql
 

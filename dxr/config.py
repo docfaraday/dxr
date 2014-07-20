@@ -122,21 +122,23 @@ class TreeConfig(object):
             'ignore_patterns':  ".hg .git CVS .svn .bzr .deps .libs .csv",
             'build_command':    "make -j $jobs",
             'source_encoding':  'utf-8',
-            'description':  ''
+            'description':  '',
+            'incremental_update':  ''
         })
         parser.read(configfile)
 
         # Set config values
-        self.enabled_plugins  = parser.get(name, 'enabled_plugins')
-        self.disabled_plugins = parser.get(name, 'disabled_plugins')
-        self.temp_folder      = parser.get(name, 'temp_folder')
-        self.log_folder       = parser.get(name, 'log_folder')
-        self.object_folder    = parser.get(name, 'object_folder')
-        self.source_folder    = parser.get(name, 'source_folder')
-        self.build_command    = parser.get(name, 'build_command')
-        self.ignore_patterns  = parser.get(name, 'ignore_patterns')
-        self.source_encoding  = parser.get(name, 'source_encoding')
-        self.description      = parser.get(name, 'description')
+        self.enabled_plugins    = parser.get(name, 'enabled_plugins')
+        self.disabled_plugins   = parser.get(name, 'disabled_plugins')
+        self.temp_folder        = parser.get(name, 'temp_folder')
+        self.log_folder         = parser.get(name, 'log_folder')
+        self.object_folder      = parser.get(name, 'object_folder')
+        self.source_folder      = parser.get(name, 'source_folder')
+        self.build_command      = parser.get(name, 'build_command')
+        self.ignore_patterns    = parser.get(name, 'ignore_patterns')
+        self.source_encoding    = parser.get(name, 'source_encoding')
+        self.description        = parser.get(name, 'description')
+        self.incremental_update = parser.get(name, 'incremental_update')
 
         # You cannot redefine the target folder!
         self.target_folder    = os.path.join(config.target_folder, 'trees', name)

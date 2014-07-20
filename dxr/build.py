@@ -127,9 +127,10 @@ def build_instance(config_path, nb_jobs=None, tree=None, verbose=False):
         start_time = datetime.now()
 
         # Create folders (delete if exists)
-        ensure_folder(tree.target_folder, not skip_indexing) # <config.target_folder>/<tree.name>
+        ensure_folder(tree.target_folder,
+            not skip_indexing and not tree.incremental_update) # <config.target_folder>/<tree.name>
         ensure_folder(tree.object_folder,                    # Object folder (user defined!)
-            tree.source_folder != tree.object_folder)        # Only clean if not the srcdir
+            tree.source_folder != tree.object_folder and not tree.incremental_update)        # Only clean if not the srcdir
         ensure_folder(tree.temp_folder,   not skip_indexing) # <config.temp_folder>/<tree.name>
                                                              # (or user defined)
         ensure_folder(tree.log_folder,    not skip_indexing) # <config.log_folder>/<tree.name>
@@ -194,7 +195,7 @@ def ensure_folder(folder, clean=False):
 
 def create_tables(tree, conn):
     print "Creating tables"
-    conn.execute("CREATE VIRTUAL TABLE trg_index USING trilite")
+    conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS trg_index USING trilite")
     conn.executescript(dxr.languages.language_schema.get_create_sql())
 
 
@@ -262,25 +263,29 @@ def index_files(tree, conn):
             # that's why it makes sense to save this result in the database
             icon = dxr.mime.icon(path)
 
-            if os.path.exists(path):
-                mtime = os.stat(path).st_mtime
+            if os.path.exists(file_path):
+                mtime = os.stat(file_path).st_mtime
                 # Remove file if stale; this causes a cascade that removes stale
                 # information from the database.
-                cur.execute("DELETE FROM files WHERE path == ? AND mtime < ?", (path, mtime))
+
+                # path isn't a unique index. Once that's fixed, we can make this
+                # simpler.
+                cur.execute("SELECT * FROM files WHERE path == ?", (path,))
+
+                if cur.fetchone() is not None:
+                    print("Checking mtime of " + file_path + " (" + path + ")")
+                    cur.execute("DELETE FROM files WHERE path == ? AND mtime < ?", (path, mtime))
+
             else:
                 # Test cases use fake files
                 mtime = 0
-
-            # TODO: Once we're ready to implement incremental update, we'll
-            # need to prune this file (and everything that depends on it)
-            # from the db.
-            cur.execute("DELETE FROM files WHERE path == ? AND mtime < ?", (path, mtime))
 
             # path isn't a unique index. Once that's fixed, we can make this
             # simpler.
             cur.execute("SELECT * FROM files WHERE path == ?", (path,))
 
             if cur.fetchone() is None:
+                print("No row in files table for " + file_path + " (" + path + ")")
                 # Insert this file
                 cur.execute("INSERT INTO files (path, icon, encoding, mtime) VALUES (?, ?, ?, ?)",
                             (path, icon, tree.source_encoding, mtime))

@@ -184,7 +184,7 @@ schema = dxr.schema.Schema({
         # Extents of the declaration
         ("extent_start", "INTEGER", True),
         ("extent_end", "INTEGER", True),
-        ("_fkey", "defid", "functions", "id"),
+        ("_fkey", "defid", "functions", "id", "CASCADE"),
         ("_index", "defid"),
     ],
     # Declaration/definition mapping for types
@@ -195,7 +195,7 @@ schema = dxr.schema.Schema({
         # Extents of the declaration
         ("extent_start", "INTEGER", True),
         ("extent_end", "INTEGER", True),
-        ("_fkey", "defid", "types", "id"),
+        ("_fkey", "defid", "types", "id", "CASCADE"),
         ("_index", "defid"),
     ],
     # Declaration/definition mapping for variables
@@ -206,7 +206,7 @@ schema = dxr.schema.Schema({
         # Extents of the declaration
         ("extent_start", "INTEGER", True),
         ("extent_end", "INTEGER", True),
-        ("_fkey", "defid", "variables", "id"),
+        ("_fkey", "defid", "variables", "id", "CASCADE"),
         ("_index", "defid"),
     ],
     # Macros: this is a table of all of the macros we come across in the code.
@@ -230,8 +230,8 @@ schema = dxr.schema.Schema({
         ("extent_end", "INTEGER", False),
         ("target_id", "INTEGER", False),  # file pointed to by the #include
         ("_key", "id"),  # so it autoincrements
-        ("_fkey", "file_id", "files", "id"),
-        ("_fkey", "target_id", "files", "id"),
+        ("_fkey", "file_id", "files", "id", "CASCADE"),
+        ("_fkey", "target_id", "files", "id", "CASCADE"),
         ("_index", "file_id"),
     ],
     # The following two tables are combined to form the callgraph implementation.
@@ -245,7 +245,7 @@ schema = dxr.schema.Schema({
         ("callerid", "INTEGER", False), # The function in which the call occurs
         ("targetid", "INTEGER", False), # The target of the call
         ("_key", "callerid", "targetid"),
-        ("_fkey", "callerid", "functions", "id")
+        ("_fkey", "callerid", "functions", "id", "CASCADE")
     ],
     "targets": [
         ("targetid", "INTEGER", False), # The target of the call
