@@ -77,7 +77,7 @@ class SchemaTable(object):
                 if len(spec) <= 1:
                     prefix = ''
                 else:
-                    prefix = spec[1]
+                    prefix = spec[1] + '_'
                     if len(spec) > 2:
                         self.fileKeyDeleteAction = spec[2]
 
