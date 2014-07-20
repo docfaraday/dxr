@@ -1,6 +1,6 @@
 from commands import getstatusoutput
 import json
-from os import chdir, mkdir
+from os import chdir, mkdir, utime
 import os.path
 from os.path import dirname
 from shutil import rmtree
@@ -136,18 +136,28 @@ class DxrInstanceTestCase(TestCase):
 
     """
     @classmethod
-    def setup_class(cls):
+    def build(cls, target=''):
         """Build the instance."""
         # nose does some amazing magic that makes this work even if there are
         # multiple test modules with the same name:
         cls._config_dir_path = dirname(sys.modules[cls.__module__].__file__)
         chdir(cls._config_dir_path)
-        run('make')
+        run('make ' + target)
+
+    @classmethod
+    def setup_class(cls):
+        """Build the instance."""
+        cls.build('clean')
+        cls.build()
 
     @classmethod
     def teardown_class(cls):
-        chdir(cls._config_dir_path)
-        run('make clean')
+        cls.build('clean')
+
+    @classmethod
+    def touch_and_rebuild(cls, filename):
+        utime(filename, None)
+        cls.build()
 
 
 class SingleFileTestCase(TestCase):
