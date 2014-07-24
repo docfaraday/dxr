@@ -1,7 +1,7 @@
 #ifndef SUBCLASS
 #define SUBCLASS
 
-#include "common_utility_file_included_everywhere.h"
+#include "baseclass.h"
 
 class DerivedClass : public BaseClass {
   public:
