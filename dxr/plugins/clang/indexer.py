@@ -354,17 +354,19 @@ def getScope(args, conn):
 
     return None
 
-def addScope(args, conn, name, id):
+def addScope(args, conn, name):
     scope = {}
     scope['name'] = args[name]
-    scope['id'] = args[id]
+    # scope['id'] = args[id]
     scope['file_id'] = args['file_id']
     scope['file_line'] = args['file_line']
     scope['file_col'] = args['file_col']
     scope['language'] = 'native'
 
     stmt = language_schema.get_insert_sql('scopes', scope)
-    conn.execute(stmt[0], stmt[1])
+    cursor = conn.cursor()
+    cursor.execute(stmt[0], stmt[1])
+    return cursor.lastrowid
 
 def handleScope(args, conn, canonicalize=False):
     scope = {}
@@ -385,9 +387,10 @@ def handleScope(args, conn, canonicalize=False):
     scopeid = getScope(scope, conn)
 
     if scopeid is None:
-        scope['id'] = scopeid = dxr.utils.next_global_id()
         stmt = language_schema.get_insert_sql('scopes', scope)
-        conn.execute(stmt[0], stmt[1])
+        cursor = conn.cursor()
+        cursor.execute(stmt[0], stmt[1])
+        scopeid = cursor.lastrowid
 
     if scopeid is not None:
         args['scopeid'] = scopeid
@@ -430,8 +433,7 @@ def process_type(args, conn):
     if scopeid is not None:
         args['id'] = scopeid
     else:
-        args['id'] = dxr.utils.next_global_id()
-        addScope(args, conn, 'name', 'id')
+        args['id'] = addScope(args, conn, 'name')
 
     handleScope(args, conn)
     fixupExtent(args, 'extent')
@@ -439,7 +441,6 @@ def process_type(args, conn):
     return language_schema.get_insert_sql('types', args)
 
 def process_typedef(args, conn):
-    args['id'] = dxr.utils.next_global_id()
     if not fixupEntryPath(args, 'loc', conn):
         return None
     fixupExtent(args, 'extent')
@@ -454,8 +455,7 @@ def process_function(args, conn):
     if scopeid is not None:
         args['id'] = scopeid
     else:
-        args['id'] = dxr.utils.next_global_id()
-        addScope(args, conn, 'name', 'id')
+        args['id'] = addScope(args, conn, 'name')
 
     if 'overridename' in args:
         overrides[args['id']] = (args['overridename'], args['overrideloc'])
@@ -469,7 +469,6 @@ def process_impl(args, conn):
     return None
 
 def process_variable(args, conn):
-    args['id'] = dxr.utils.next_global_id()
     if 'value' in args:
         args['value'] = _truncate(args['value'])
     if not fixupEntryPath(args, 'loc', conn):
@@ -502,7 +501,6 @@ def process_warning(args, conn):
     return schema.get_insert_sql('warnings', args)
 
 def process_macro(args, conn):
-    args['id'] = dxr.utils.next_global_id()
     if 'text' in args:
         args['text'] = args['text'].replace("\\\n", "\n").strip()
         args['text'] = _truncate(args['text'])
@@ -523,14 +521,12 @@ def process_call(args, conn):
 def process_namespace(args, conn):
     if not fixupEntryPath(args, 'loc', conn):
         return None
-    args['id'] = dxr.utils.next_global_id()
     fixupExtent(args, 'extent')
     return schema.get_insert_sql('namespaces', args)
 
 def process_namespace_alias(args, conn):
     if not fixupEntryPath(args, 'loc', conn):
         return None
-    args['id'] = dxr.utils.next_global_id()
     fixupExtent(args, 'extent')
     return schema.get_insert_sql('namespace_aliases', args)
 
