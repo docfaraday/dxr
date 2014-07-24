@@ -135,16 +135,6 @@ schema = dxr.schema.Schema({
         ("_fkey", "refid", "namespace_aliases", "id"),
         ("_index", "refid"),
     ],
-    # References to functions
-    #"function_refs": [
-    #    ("refid", "INTEGER", True),      # ID of the function being referenced
-    #    ("extent_start", "INTEGER", True),
-    #    ("extent_end", "INTEGER", True),
-    #    ("_location", True),
-    #    ("_location", True, 'referenced'),
-    #    ("_fkey", "refid", "functions", "id"),
-    #    ("_index", "refid"),
-    #],
     # References to macros
     "macro_refs": [
         ("refid", "INTEGER", True),      # ID of the macro being referenced
@@ -357,7 +347,6 @@ def getScope(args, conn):
 def addScope(args, conn, name):
     scope = {}
     scope['name'] = args[name]
-    # scope['id'] = args[id]
     scope['file_id'] = args['file_id']
     scope['file_line'] = args['file_line']
     scope['file_col'] = args['file_col']
@@ -891,15 +880,6 @@ def update_refs(conn):
                    AND def.file_col   = referenced_file_col
         ) WHERE refid IS NULL"""
     conn.execute(sql)
-#    sql = """
-#        UPDATE function_refs SET refid = (
-#                SELECT id
-#                  FROM functions AS def
-#                 WHERE def.file_id    = referenced_file_id
-#                   AND def.file_line  = referenced_file_line
-#                   AND def.file_col   = referenced_file_col
-#        ) WHERE refid IS NULL"""
-#    conn.execute(sql)
     sql = """
         UPDATE variable_refs SET refid = (
                 SELECT id
