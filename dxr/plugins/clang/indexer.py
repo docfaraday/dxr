@@ -39,6 +39,23 @@ def post_process(tree, conn):
     print " - Adding tables"
     conn.executescript(schema.get_create_sql())
 
+    function_refs_view_sql = """
+        CREATE VIEW IF NOT EXISTS function_refs AS
+        SELECT functions.id                      AS refid,
+               function_ref_to_decl.file_id      AS file_id,
+               function_ref_to_decl.file_line    AS file_line,
+               function_ref_to_decl.file_col     AS file_col,
+               function_ref_to_decl.extent_start AS extent_start,
+               function_ref_to_decl.extent_end   AS extent_end,
+               functions.file_id                 AS referenced_file_id,
+               functions.file_line               AS referenced_file_line,
+               functions.file_col                AS referenced_file_col
+        FROM functions
+        INNER JOIN function_decldef ON functions.id == function_decldef.defid
+        INNER JOIN function_ref_to_decl ON function_decldef.id == function_ref_to_decl.declid;
+    """
+    conn.execute(function_refs_view_sql);
+
     print " - Processing files"
     temp_folder = os.path.join(tree.temp_folder, 'plugins', PLUGIN_NAME)
     for f in os.listdir(temp_folder):
@@ -119,15 +136,15 @@ schema = dxr.schema.Schema({
         ("_index", "refid"),
     ],
     # References to functions
-    "function_refs": [
-        ("refid", "INTEGER", True),      # ID of the function being referenced
-        ("extent_start", "INTEGER", True),
-        ("extent_end", "INTEGER", True),
-        ("_location", True),
-        ("_location", True, 'referenced'),
-        ("_fkey", "refid", "functions", "id"),
-        ("_index", "refid"),
-    ],
+    #"function_refs": [
+    #    ("refid", "INTEGER", True),      # ID of the function being referenced
+    #    ("extent_start", "INTEGER", True),
+    #    ("extent_end", "INTEGER", True),
+    #    ("_location", True),
+    #    ("_location", True, 'referenced'),
+    #    ("_fkey", "refid", "functions", "id"),
+    #    ("_index", "refid"),
+    #],
     # References to macros
     "macro_refs": [
         ("refid", "INTEGER", True),      # ID of the macro being referenced
@@ -178,6 +195,7 @@ schema = dxr.schema.Schema({
     ],
     # Declaration/definition mapping for functions
     "function_decldef": [
+        ("id", "INTEGER", True), # ID for the declaration
         ("defid", "INTEGER", True),    # ID of the definition instance
         ("_location", True),
         ("_location", True, 'definition'),
@@ -186,6 +204,20 @@ schema = dxr.schema.Schema({
         ("extent_end", "INTEGER", True),
         ("_fkey", "defid", "functions", "id", "CASCADE"),
         ("_index", "defid"),
+        ("_key", "id"),
+    ],
+    # Reference/declaration mapping for functions
+    "function_ref_to_decl": [
+        ("refid", "INTEGER", True),
+        ("declid", "INTEGER", True), # id in function_decldef
+        ("extent_start", "INTEGER", True),
+        ("extent_end", "INTEGER", True),
+        ("_location", True),
+        ("_location", True, 'referenced'),
+        ("_key", "refid"),
+        ("_fkey", "declid", "function_decldef", "id", "CASCADE"),
+        ("_index", "refid"), # Speeds up lookup of function decl given refid
+        ("_index", "declid"), # Speeds up lookup of references to a given declid
     ],
     # Declaration/definition mapping for types
     "type_decldef": [
@@ -253,7 +285,7 @@ schema = dxr.schema.Schema({
         ("_key", "targetid", "funcid"),
         ("_fkey", "funcid", "functions", "id"),
         ("_index", "funcid"),
-    ]
+    ],
 })
 
 
@@ -457,6 +489,9 @@ def process_ref(args, conn):
     if not fixupEntryPath(args, 'declloc', conn, 'referenced'):
         return None
     fixupExtent(args, 'extent')
+
+    if args['kind'] == 'function':
+        return schema.get_insert_sql('function_ref_to_decl', args)
 
     return schema.get_insert_sql(args['kind'] + '_refs', args)
 
@@ -752,6 +787,7 @@ def generate_callgraph(conn):
 
 
 def update_defids(conn):
+    # First, point decldef at declarations
     sql = """
         UPDATE type_decldef SET defid = (
               SELECT id
@@ -780,6 +816,26 @@ def update_defids(conn):
         )"""
     conn.execute(sql)
 
+    # Then, synthesize trivial decldefs for stuff that doesn't have a decldef
+    # record yet (ie; the declaration is also the definition)
+    sql = """
+        INSERT INTO function_decldef (defid,
+                                      file_id, file_line, file_col,
+                                      definition_file_id, definition_file_line, definition_file_col,
+                                      extent_start, extent_end)
+
+            SELECT                    functions.id,
+                                      functions.file_id, functions.file_line, functions.file_col,
+                                      functions.file_id, functions.file_line, functions.file_col,
+                                      functions.extent_start, functions.extent_end
+            FROM functions
+            WHERE NOT EXISTS (
+                SELECT function_decldef.defid FROM function_decldef
+                WHERE function_decldef.defid == functions.id
+            );
+    """
+    conn.execute(sql)
+
 
 def update_refs(conn):
     # References to declarations
@@ -793,13 +849,13 @@ def update_refs(conn):
         ) WHERE refid IS NULL"""
     conn.execute(sql)
     sql = """
-        UPDATE function_refs SET refid = (
-                SELECT defid
+        UPDATE function_ref_to_decl SET declid = (
+                SELECT id
                   FROM function_decldef AS decl
                  WHERE decl.file_id   = referenced_file_id
                    AND decl.file_line = referenced_file_line
                    AND decl.file_col  = referenced_file_col
-        ) WHERE refid IS NULL"""
+        ) WHERE declid IS NULL"""
     conn.execute(sql)
     sql = """
         UPDATE variable_refs SET refid = (
@@ -839,15 +895,15 @@ def update_refs(conn):
                    AND def.file_col   = referenced_file_col
         ) WHERE refid IS NULL"""
     conn.execute(sql)
-    sql = """
-        UPDATE function_refs SET refid = (
-                SELECT id
-                  FROM functions AS def
-                 WHERE def.file_id    = referenced_file_id
-                   AND def.file_line  = referenced_file_line
-                   AND def.file_col   = referenced_file_col
-        ) WHERE refid IS NULL"""
-    conn.execute(sql)
+#    sql = """
+#        UPDATE function_refs SET refid = (
+#                SELECT id
+#                  FROM functions AS def
+#                 WHERE def.file_id    = referenced_file_id
+#                   AND def.file_line  = referenced_file_line
+#                   AND def.file_col   = referenced_file_col
+#        ) WHERE refid IS NULL"""
+#    conn.execute(sql)
     sql = """
         UPDATE variable_refs SET refid = (
                 SELECT id
